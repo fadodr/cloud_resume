@@ -1,0 +1,158 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  cloud-resume
+
+  Sample SAM Template for cloud-resume
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+    Tracing: Active
+  Api:
+    TracingEnabled: True
+
+Resources:
+  myResumeWebsite:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName : fado-my-cloud-resume
+      AccessControl: PublicRead
+      WebsiteConfiguration :
+        IndexDocument : index.html
+  
+  myResumeWebsiteBucketPolicy:
+    Type : AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: mypolicy
+        Version: 2012-10-17
+        Statement:
+          Sid: publicReadforMyWebsite
+          Effect: Allow
+          Principal: "*"
+          Action: 's3:GetObject'
+          Resource: !Join
+            - ''
+            - - 'arn:aws:s3:::'
+              - !Ref myResumeWebsite
+              - '/*'
+
+      Bucket: !Ref myResumeWebsite
+
+  myResumeDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: fado-my-cloud-resume.s3.us-east-1.amazonaws.com
+            Id: my-s3-origin
+            CustomOriginConfig:
+              OriginProtocolPolicy: match-viewer
+        DefaultCacheBehavior:
+          TargetOriginId: my-s3-origin
+          ViewerProtocolPolicy: "redirect-to-https"
+          DefaultTTL: 0
+          MinTTL: 0
+          MaxTTL: 0
+          ForwardedValues:
+            QueryString: 'true'
+            Cookies:
+              Forward: none
+        Enabled: true
+        HttpVersion: 'http2'
+        DefaultRootObject: index.html
+        ViewerCertificate:
+          AcmCertificateArn: !Ref myCertification
+          SslSupportMethod: sni-only
+        Aliases:
+          - www.fadoag.com
+
+  myResumeRoute53Record:
+      Type: AWS::Route53::RecordSetGroup
+      Properties:
+        HostedZoneId: Z09980393NTXLZDAPJLQW
+        RecordSets:
+          - Name: www.fadoag.com
+            Type: A
+            AliasTarget:
+              HostedZoneId: Z2FDTNDATAQYW2
+              DNSName: !GetAtt myResumeDistribution.DomainName
+
+  myCertification:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: www.fadoag.com
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: www.fadoag.com
+          HostedZoneId: Z09980393NTXLZDAPJLQW
+
+  myResumeDynamoDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: my-resume-challenge
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ID
+          KeyType: HASH
+
+
+  
+
+
+
+
+  GETfunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Policies:
+        DynamoDBCrudPolicy:
+          TableName: my-resume-challenge
+      CodeUri: get-function/
+      Handler: app.lambdaHandler
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Events:
+        HelloWorld:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /get
+            Method: get
+
+  POSTfunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Policies:
+        DynamoDBCrudPolicy:
+          TableName: my-resume-challenge
+      CodeUri: post-function/
+      Handler: app.lambdaHandler
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Events:
+        HelloWorld:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /post
+            Method: get
+
+# Outputs:
+#   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+#   # Find out more about other implicit resources you can reference within SAM
+#   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+#   HelloWorldApi:
+#     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+#   HelloWorldFunction:
+#     Description: "Hello World Lambda Function ARN"
+#     Value: !GetAtt HelloWorldFunction.Arn
+#   HelloWorldFunctionIamRole:
+#     Description: "Implicit IAM Role created for Hello World function"
+#     Value: !GetAtt HelloWorldFunctionRole.Arn
