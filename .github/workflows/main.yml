@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '12.x'
+      - name: install dependencies
+        run: npm i -g mocha && npm i aws-sdk && npm i -D chai
       - name: run test get-function
         run:  cd get-function && npm test && cd ../
       - name: run test post-function
