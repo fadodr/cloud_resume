@@ -101,6 +101,7 @@ for (var i = 0; i < links.length; i++) {
     }
   });
 }
+//
 
 //increment and fetch number of visitors to my webiste
 fetch('https://jz4hz3oecj.execute-api.us-east-1.amazonaws.com/Prod/post')
