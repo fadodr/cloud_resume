@@ -2,7 +2,7 @@ name: cloud-resume
 on: 
   push:
     branches:
-      master
+      - master
 
 jobs:
   test:
